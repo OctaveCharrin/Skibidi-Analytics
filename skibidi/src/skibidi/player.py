@@ -31,6 +31,7 @@ class Player:
 
     class View:
         def __init__(self, game: "Game", player: "Player"):
+            self.name = player.name
             self.drawn_card: Card | None = None
             self.hand: list[Card | None] = [None] * game.dealer.hand_size
             # Use name comparison as they should be unique and so that

@@ -30,11 +30,28 @@ class RandomStrategy(Strategy):
     def decide_effect(
         public: Game.View, private: Player.View, effect: Card.Effect
     ) -> Any:
-        """Decide how to handle a card effect."""
-        raise NotImplementedError("This method should be overridden by subclasses.")
+        if effect == Card.Effect.SHUFFLE or effect == Card.Effect.DRAW:
+            return random.choice([name for name in private.opponents_hands.keys()])
+        elif effect == Card.Effect.PEEK:
+            return (private.name, random.randint(0, len(private.hand) - 1))
+        elif effect == Card.Effect.SWAP:
+            target1 = random.choice(
+                [name for name in private.opponents_hands.keys()] + [private.name]
+            )
+            target2 = random.choice(
+                [name for name in private.opponents_hands.keys()] + [private.name]
+            )
+            idx1 = random.randint(0, len(private.opponents_hands[target1]) - 1)
+            idx2 = random.randint(0, len(private.opponents_hands[target2]) - 1)
+            return (target1, idx1, target2, idx2)
+        elif effect == Card.Effect.NONE:
+            return None
+        else:
+            raise ValueError(f"Unknown effect: {effect}")
 
     def decide_call(public: Game.View, private: Player.View) -> int:
-        call = random.choice([True, False], p=[0.1, 0.9])
+        # 10% chance to call
+        call = random.random() < 0.1
         if call:
             return random.randint(0, len(private.hand) - 1)
         return -1

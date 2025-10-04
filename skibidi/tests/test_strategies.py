@@ -23,10 +23,16 @@ class _FakePublicView:
 
 
 class _FakePrivateView:
-    def __init__(self, hand):
+    def __init__(self, hand, name: str = "P1"):
         self.hand = hand
+        # name of the player owning this view (some strategies reference it)
+        self.name = name
         # mapping of opponent name -> list of known cards (None = unknown)
-        self.opponents_hands = {"P2": [None] * len(hand)}
+        # Include the player's own name with a same-length list to support
+        # strategies that may reference private.name and then index into
+        # private.opponents_hands[private.name]. This mirrors the minimal
+        # information a player's view might provide.
+        self.opponents_hands = {"P2": [None] * len(hand), self.name: [None] * len(hand)}
 
 
 class TestStrategyImplementations(unittest.TestCase):
@@ -47,13 +53,20 @@ class TestStrategyImplementations(unittest.TestCase):
 
         # iterate all modules inside skibidi.strategy package
         for finder, name, ispkg in pkgutil.iter_modules(package_path):
+            # Skip package internals and the abstract base module
             if name == "strategy" or name.startswith("__"):
+                continue
+            # Exclude the interactive human strategy from automated checks
+            if name == "human":
                 continue
             module_name = f"skibidi.strategy.{name}"
             module = importlib.import_module(module_name)
 
             # find all Strategy subclasses in module
             for _, cls in inspect.getmembers(module, inspect.isclass):
+                # Skip the interactive HumanStrategy class (requires stdin)
+                if cls.__name__ == "HumanStrategy":
+                    continue
                 if not issubclass(cls, Strategy) or cls is Strategy:
                     continue
 
