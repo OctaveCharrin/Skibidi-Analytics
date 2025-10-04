@@ -1,8 +1,6 @@
-# Skibidi Game Analytics Engine
+# Skibidi Engine: API & Strategy Development Guide
 
-**Skibidi Analytics** is a Python-based simulation engine designed for analyzing and comparing strategies for the Skibidi card game. It provides a clean, modular architecture that separates the game logic from player decision-making, allowing for robust testing and analysis of different play styles.
-
-The core of the engine is the `Game` class, which orchestrates the game flow, while individual player actions are dictated by interchangeable `Strategy` classes.
+This document provides a technical deep-dive into the **Skibidi Analytics** engine. It details the core architecture, data structures, and the conventions required for implementing custom player strategies.
 
 ## Core Architecture
 
