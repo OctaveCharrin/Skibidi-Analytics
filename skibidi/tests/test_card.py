@@ -1,7 +1,7 @@
 import unittest
 
-
 from skibidi.card import Card
+
 
 class TestCard(unittest.TestCase):
     """Binary test suite for the Card class."""
@@ -18,7 +18,9 @@ class TestCard(unittest.TestCase):
         joker = Card(None, Card.Rank.JOKER_RED)
         self.assertIsNone(joker.suit, "Jokers should have no suit.")
         self.assertEqual(joker.rank, Card.Rank.JOKER_RED)
-        self.assertEqual(joker.effect, Card.Effect.NONE, "Jokers should have no effect.")
+        self.assertEqual(
+            joker.effect, Card.Effect.NONE, "Jokers should have no effect."
+        )
 
     def test_card_representation(self):
         """Tests the __repr__ method for both standard cards and Jokers."""
@@ -38,10 +40,16 @@ class TestCard(unittest.TestCase):
         joker2 = Card(None, Card.Rank.JOKER_RED)
 
         self.assertEqual(card1, card2, "Identical cards should be equal.")
-        self.assertNotEqual(card1, card3, "Cards with different suits should not be equal.")
-        self.assertNotEqual(card1, card4, "Cards with different ranks should not be equal.")
+        self.assertNotEqual(
+            card1, card3, "Cards with different suits should not be equal."
+        )
+        self.assertNotEqual(
+            card1, card4, "Cards with different ranks should not be equal."
+        )
         self.assertEqual(joker1, joker2, "Identical jokers should be equal.")
-        self.assertNotEqual(card1, joker1, "A standard card should not be equal to a Joker.")
+        self.assertNotEqual(
+            card1, joker1, "A standard card should not be equal to a Joker."
+        )
         self.assertNotEqual(card1, "5♣", "A card should not be equal to a string.")
 
     def test_card_value(self):
@@ -57,25 +65,39 @@ class TestCard(unittest.TestCase):
         """Tests that the correct effect is assigned based on rank and suit."""
         # King effects
         king_h = Card(Card.Suit.HEARTS, Card.Rank.KING)
-        self.assertEqual(king_h.effect, Card.Effect.SHUFFLE, "Red Kings should have SHUFFLE effect.")
+        self.assertEqual(
+            king_h.effect, Card.Effect.SHUFFLE, "Red Kings should have SHUFFLE effect."
+        )
         king_d = Card(Card.Suit.DIAMONDS, Card.Rank.KING)
-        self.assertEqual(king_d.effect, Card.Effect.SHUFFLE, "Red Kings should have SHUFFLE effect.")
+        self.assertEqual(
+            king_d.effect, Card.Effect.SHUFFLE, "Red Kings should have SHUFFLE effect."
+        )
         king_s = Card(Card.Suit.SPADES, Card.Rank.KING)
-        self.assertEqual(king_s.effect, Card.Effect.DRAW, "Black Kings should have DRAW effect.")
+        self.assertEqual(
+            king_s.effect, Card.Effect.DRAW, "Black Kings should have DRAW effect."
+        )
         king_c = Card(Card.Suit.CLUBS, Card.Rank.KING)
-        self.assertEqual(king_c.effect, Card.Effect.DRAW, "Black Kings should have DRAW effect.")
+        self.assertEqual(
+            king_c.effect, Card.Effect.DRAW, "Black Kings should have DRAW effect."
+        )
 
         # Queen and Jack effects
         queen = Card(Card.Suit.SPADES, Card.Rank.QUEEN)
-        self.assertEqual(queen.effect, Card.Effect.SWAP, "Queens should have SWAP effect.")
+        self.assertEqual(
+            queen.effect, Card.Effect.SWAP, "Queens should have SWAP effect."
+        )
         jack = Card(Card.Suit.SPADES, Card.Rank.JACK)
-        self.assertEqual(jack.effect, Card.Effect.PEEK, "Jacks should have PEEK effect.")
+        self.assertEqual(
+            jack.effect, Card.Effect.PEEK, "Jacks should have PEEK effect."
+        )
 
         # No effect
         seven = Card(Card.Suit.SPADES, Card.Rank.SEVEN)
-        self.assertEqual(seven.effect, Card.Effect.NONE, "Numeric cards should have no effect.")
+        self.assertEqual(
+            seven.effect, Card.Effect.NONE, "Numeric cards should have no effect."
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # This allows the script to be run directly from the command line
     unittest.main()

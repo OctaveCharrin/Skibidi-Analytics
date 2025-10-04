@@ -1,7 +1,6 @@
 import random
 
 from skibidi.card import Card
-from skibidi.game import Game
 
 
 class Dealer:
@@ -31,8 +30,7 @@ class Dealer:
                 f"{indent})"
             )
 
-    def __init__(self, game: Game, hand_size: int = 5, treasure_size: int = 3):
-        self.game = game
+    def __init__(self, hand_size: int = 5, treasure_size: int = 3):
         self.hand_size = hand_size
         self.treasure_size = treasure_size
         self.deck = self.init_deck()
@@ -42,10 +40,13 @@ class Dealer:
         self.view = Dealer.View(self)
 
     def init_deck(self):
-        suits = Card.Suit.ALL
-        ranks = Card.Rank.ALL
-        deck = [Card(suit, rank) for suit in suits for rank in ranks]
-        deck += [Card(None, Card.Rank.JOKER), Card(None, Card.Rank.JOKER)]
+        deck = [
+            Card(suit, rank)
+            for suit in Card.Suit
+            for rank in Card.Rank
+            if rank not in [Card.Rank.JOKER_RED, Card.Rank.JOKER_BLACK]
+        ]
+        deck += [Card(None, Card.Rank.JOKER_RED), Card(None, Card.Rank.JOKER_BLACK)]
         return deck
 
     def reset_deck(self):

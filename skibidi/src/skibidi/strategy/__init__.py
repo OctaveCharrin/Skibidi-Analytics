@@ -1,1 +1,1 @@
-from skibidi.strategy import Strategy
+from .strategy import Strategy

@@ -1,15 +1,16 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from skibidi.game import Game
-from skibidi.dealer import Dealer
-from skibidi.player import Player
-from skibidi.card import Card
+if TYPE_CHECKING:
+    from skibidi.game import Game
+    from skibidi.dealer import Dealer
+    from skibidi.player import Player
+    from skibidi.card import Card
 
 
 # Abstract base class for strategies
 class Strategy:
     @staticmethod
-    def select_draw_pile(public: Game.View, private: Player.View) -> Dealer.Source:
+    def select_draw_pile(public: "Game.View", private: "Player.View") -> "Dealer.Source":
         """Select from which pile to draw a card.
 
         Args:
@@ -24,7 +25,7 @@ class Strategy:
 
     @staticmethod
     def select_card_to_exchange(
-        public: Game.View, private: Player.View, source: Dealer.Source
+        public: "Game.View", private: "Player.View", source: "Dealer.Source"
     ) -> int:
         """Select which card to exchange from hand.
 
@@ -39,7 +40,7 @@ class Strategy:
         raise NotImplementedError("This method should be overridden by subclasses.")
 
     @staticmethod
-    def select_card_to_discard(public: Game.View, private: Player.View) -> int:
+    def select_card_to_discard(public: "Game.View", private: "Player.View") -> int:
         """Select which card to discard from hand.
 
         Args:
@@ -53,7 +54,7 @@ class Strategy:
 
     @staticmethod
     def decide_effect(
-        public: Game.View, private: Player.View, effect: Card.Effect
+        public: "Game.View", private: "Player.View", effect: "Card.Effect"
     ) -> Any:
         """Decide how to handle a card effect.
 
@@ -76,7 +77,7 @@ class Strategy:
         raise NotImplementedError("This method should be overridden by subclasses.")
 
     @staticmethod
-    def decide_call(public: Game.View, private: Player.View) -> int:
+    def decide_call(public: "Game.View", private: "Player.View") -> int:
         """Decide whether to call the end of the round.
 
         Args:

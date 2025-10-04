@@ -1,5 +1,5 @@
 import random
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from skibidi.card import Card
 from skibidi.dealer import Dealer
@@ -44,18 +44,37 @@ class Game:
         treasure_size: int = 3,
         initially_known: int = 2,
     ):
-        self.dealer: Dealer = Dealer(self, hand_size, treasure_size)
+        # Core objects and ordering:
+        # 1. Create the Dealer (deck sizes known).
+        # 2. Create Player objects (they do NOT create their View in __init__).
+        # 3. Initialize per-player hand structures (game.hands).
+        # 4. Call player.init_view(self) for each player so Player.View can
+        #    safely inspect game.players and dealer sizes.
+        # 5. Finally create Game.View which depends on the completed players
+        #    list and the dealer view.
+        self.dealer: Dealer = Dealer(hand_size, treasure_size)
         if names is None:
-            self.players: list[Player] = [
-                Player(f"Player {i + 1}") for i in range(n_players)
-            ]
-        else:
-            self.players: list[Player] = [Player(name) for name in names]
+            names = [f"Player {i + 1}" for i in range(n_players)]
+        # Create players in the order of provided names
+        self.players: list[Player] = [Player(self, name) for name in names]
+
+        # Initialize empty hands using player names
         self.hands: dict[str, list[Card]] = {p.name: [] for p in self.players}
+
+        # Normalize initially_known to a list of indices
+        if isinstance(initially_known, int):
+            self.initially_known = list(range(initially_known))
+        else:
+            self.initially_known = list(initially_known)
+
+        # Now initialize player views (players and hands exist)
+        for player in self.players:
+            player.init_view(self)
+
         self.current_player_index: int = 0
         self.caller_index: int = -1
+        # Create view after players exist so scores length is correct
         self.view: Game.View = Game.View(self)
-        self.initially_known = initially_known
 
     def play(self):
         # Ensure all players have a strategy
@@ -309,7 +328,7 @@ class Game:
                 player.learn_card(i, self.hands[player.name][i])
         # Player with highest score starts
         self.current_player_index = (
-            0 if self.round == 0 else self.view.scores.index(max(self.view.scores))
+            0 if self.view.round == 0 else self.view.scores.index(max(self.view.scores))
         )
         self.caller_index = -1
 
