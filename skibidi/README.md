@@ -64,3 +64,42 @@ Here is how to implement each required method:
     -   **`PEEK`**: Return a `tuple(target_player_name: str, card_index: int)`.
     -   **`SWAP`**: Return a `tuple(player1_name: str, card1_index: int, player2_name: str, card2_index: int)`.
     -   **`NONE`**: No decision is needed; you can return `None`.
+
+### Verifying Strategy Compliance
+
+Use the provided generic unit test (tests/test_strategies.py) to automatically validate that any new Strategy implementation in `src/skibidi/strategy` follows the required API and return-value conventions.
+
+#### Steps
+1. Put your strategy implementation under `src/skibidi/strategy/` and make it a subclass of `skibidi.strategy.Strategy`.
+2. From the project root run the test:
+
+    ```bash
+    python -m unittest tests.test_strategies -v
+    ```
+
+   Or use discovery for the whole tests folder:
+
+    ```bash
+    python -m unittest discover -s skibidi\tests -p test_strategies.py -v
+    ```
+
+#### What the test checks
+- The module contains a concrete subclass of `Strategy`.
+- Required methods exist:
+  - select_draw_pile(public, private)
+  - select_card_to_exchange(public, private, source)
+  - select_card_to_discard(public, private)
+  - decide_effect(public, private, effect)
+  - decide_call(public, private)
+- Methods return values that match the documented conventions (e.g., Dealer.Source for draw choice, ints for indices, tuples/strings for effect decisions).
+
+#### Interpreting failures
+- Missing-method failures: implement the missing method with the correct signature.
+- Wrong return-type failures: adjust the method so it returns values that meet the README conventions.
+- `NotImplementedError`: the test treats NotImplementedError as a failure (signals an unimplemented method). If you intentionally want to leave a method unimplemented during development, you can temporarily modify the test to skip methods raising NotImplementedError; however, committed strategies should implement all required methods.
+
+#### Developer tips
+- The test uses small fake public/private views; if your strategy expects additional fields, make it defensive (e.g., check for attribute existence) or update the fake view in `tests/test_strategies.py`.
+- Keep the strategy stateless or store internal state on the class instance only; the tests instantiate and call methods directly.
+
+This test provides quick feedback: after adding a new strategy file, run the test above — it will confirm the implementation follows the engine conventions without needing a custom test per strategy.
