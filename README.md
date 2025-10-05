@@ -21,3 +21,9 @@ For a detailed guide on the project's architecture, API, and how to implement ne
     # Install the package from the project root
     pip install -e .
     ```
+
+## Test the game in your shell
+Simply run the `main.py` script and follow the instruction to play the game!
+```bash
+python main.py
+```
