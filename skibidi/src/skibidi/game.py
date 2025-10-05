@@ -1,9 +1,13 @@
+import logging
 import random
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from skibidi.card import Card
 from skibidi.dealer import Dealer
 from skibidi.player import Player
+
+# TODO: module-level logger
+logger = logging.getLogger(__name__)
 
 
 class Game:
@@ -12,7 +16,9 @@ class Game:
         def __init__(self, game: "Game"):
             self.dealer_view: Dealer.View = game.dealer.view
             self.effects_queue: list[tuple[Player, Card.Effect]] = []
+            self.players_order: list[str] = [p.name for p in game.players]
             self.current_player_index: int = 0
+            self.caller_index: int = -1
             self.scores = [0] * len(game.players)
             self.round = 0
 
@@ -22,16 +28,17 @@ class Game:
 
         def __repr__(self, indent: str = "") -> str:
 
-            effects_str = (
-                f"[{', '.join(f'({p.name}, {e})' for p, e in self.effects_queue)}]"
-            )
-            dealer_view_repr = self.dealer_view.__repr__(indent=indent + "  ")
+            effects_str = f"[{', '.join(f'({p.name}, {e.value})' for p, e in self.effects_queue)}]"
+            dealer_view_repr = self.dealer_view.__repr__(indent=indent + " " * 10)
 
             return (
                 f"Game.View(\n"
                 f"{indent}    (round): {self.round}\n"
                 f"{indent}    (scores): {self.scores}\n"
                 f"{indent}    (effects_queue): {effects_str}\n"
+                f"{indent}    (players_order): {self.players_order}\n"
+                f"{indent}    (current_player_index): {self.current_player_index}\n"
+                f"{indent}    (caller_index): {self.caller_index}\n"
                 f"{indent}    (dealer): {dealer_view_repr}\n"
                 f"{indent})"
             )
@@ -43,7 +50,22 @@ class Game:
         hand_size: int = 5,
         treasure_size: int = 3,
         initially_known: int = 2,
+        verbose: bool = False,
     ):
+        # Configure module logger based on verbose flag. If verbose is True
+        # ensure a StreamHandler exists so info messages are visible to the console.
+        self.verbose = verbose
+        if verbose:
+            logger.setLevel(logging.INFO)
+            if not logger.handlers:
+                handler = logging.StreamHandler()
+                handler.setFormatter(logging.Formatter("%(message)s"))
+                logger.addHandler(handler)
+            # prevent messages from being logged again by the root logger's handler
+            # (logging.basicConfig adds a root handler in main). This avoids duplicate lines.
+            logger.propagate = False
+        else:
+            logger.setLevel(logging.WARNING)
         # Core objects and ordering:
         # 1. Create the Dealer (deck sizes known).
         # 2. Create Player objects (they do NOT create their View in __init__).
@@ -72,7 +94,7 @@ class Game:
             player.init_view(self)
 
         self.current_player_index: int = 0
-        self.caller_index: int = -1
+
         # Create view after players exist so scores length is correct
         self.view: Game.View = Game.View(self)
 
@@ -85,16 +107,20 @@ class Game:
         while not self.is_finished():
             self.init_round()
             while (
-                self.caller_index < 0 or self.current_player_index != self.caller_index
+                self.view.caller_index < 0 or self.current_player_index != self.view.caller_index
             ):
                 # Player turn
                 current_player = self.players[self.current_player_index]
+                logger.info(f"[GameMaster]: ## Player {current_player.name}'s turn ##")
 
                 # Choose draw source and draw card
                 source = current_player.strategy.select_draw_pile(
                     self.view, current_player.view
                 )
                 card = self.dealer.draw(source)
+                logger.info(
+                    f"[GameMaster]: Player {current_player.name} drew card from {source}."
+                )
 
                 # Update player's view
                 current_player.view.drawn_card = card
@@ -104,7 +130,9 @@ class Game:
                     self.view, current_player.view, source
                 )
                 while exchange_index < 0 and source == Dealer.Source.DISCARD:
-                    print("Invalid choice, cannot discard from discard pile.")
+                    logger.info(
+                        "[GameMaster]: Invalid choice, cannot discard a card taken from discard pile."
+                    )
                     exchange_index = current_player.strategy.select_card_to_exchange(
                         self.view, current_player.view, source
                     )
@@ -130,22 +158,25 @@ class Game:
                     self.apply_effect(player, effect, decision)
 
                 # Decide whether to call
-                call_discard_index = current_player.strategy.decide_call(
-                    self.view, current_player.view
-                )
-                if 0 <= call_discard_index < len(self.hands[current_player.name]):
-                    print(f"Player {current_player.name} calls the end of the round!")
-                    if len(self.hands[current_player.name]) > 1:
-                        self.discard(current_player, idx=call_discard_index)
-                        self.caller_index = self.current_player_index
-                        # Other players discard their cards
-                        self.allow_discards(current_player)
-                    else:
-                        print(
-                            f"Discarding card ignored since only one card left in hand."
+                if self.view.caller_index < 0:  # No one has called yet
+                    call_discard_index = current_player.strategy.decide_call(
+                        self.view, current_player.view
+                    )
+                    if 0 <= call_discard_index < len(self.hands[current_player.name]):
+                        logger.info(
+                            f"[GameMaster]: Player {current_player.name} calls the end of the round!"
                         )
-                else:
-                    print("No call made.")
+                        if len(self.hands[current_player.name]) > 1:
+                            self.discard(current_player, idx=call_discard_index)
+                            self.view.caller_index = self.current_player_index
+                            # Other players discard their cards
+                            self.allow_discards(current_player)
+                        else:
+                            logger.info(
+                                f"[GameMaster]: No card discarded while calling."
+                            )
+                    else:
+                        logger.info(f"[GameMaster]: Player {current_player.name} did not call.")
 
                 self.current_player_index = (self.current_player_index + 1) % len(
                     self.players
@@ -162,6 +193,7 @@ class Game:
                 return player
         raise ValueError(f"No player found with name {name}.")
 
+    # TODO: problem here
     def discard(self, player: Player, card: Card = None, idx: int = None):
         if card is None and idx is None:
             raise ValueError("Either card or idx must be provided.")
@@ -178,6 +210,7 @@ class Game:
                 if opponent != player:
                     opponent.view.opponents_hands[player.name].pop(idx)
         self.dealer.discard(card)
+        logger.info(f"[GameMaster]: Player {player.name} discards {card}.")
         if card.effect != Card.Effect.NONE:
             self.view.effects_queue.append((player, card.effect))
 
@@ -190,11 +223,16 @@ class Game:
         self.hands[player.name][idx] = card
         if reveal:
             player.learn_card(idx, card)
+        logger.info(
+            f"[GameMaster]: Player {player.name} exchanges the drawn card with his card at index {idx}."
+        )
         return old_card
 
     def penalize(self, player: Player):
         """Give a penalty card to the player and add a None to their view hand."""
-        print(f"Player {player.name} is penalized.")
+        logger.info(
+            f"[GameMaster]: Player {player.name} was penalized and drawn a penalty card."
+        )
         penalty_card = self.dealer.draw(Dealer.Source.DRAW)
         self.hands[player.name].append(penalty_card)
         player.view.hand.append(None)
@@ -220,6 +258,10 @@ class Game:
         if card is None:
             return
 
+        logger.info(
+            f"[GameMaster]: Allowing players to discard cards similar to {card} - Be fast!"
+        )
+        # TODO: allow for chaining heads over heads.
         # Players want to discard (they can make errors and be penalized)
         while True:  # For chaining discards of special cards
             discard_idx = [
@@ -236,19 +278,23 @@ class Game:
 
                 # Select the fastest player among those who want to discard
                 p, idx = random.choices(discard_idx, weights=speeds)[0]
+                logger.info(f"[GameMaster]: Player {p.name} was the fastest!")
                 card_to_discard = self.hands[p.name][idx]
-                if card_to_discard != card:
-                    print(
-                        f"Player {p.name} attempted to discard {card_to_discard}, but top of discard pile is {card}. Penalizing."
+                if card_to_discard.rank != card.rank:
+                    logger.info(
+                        f"[GameMaster]: Player {p.name} attempted to discard {card_to_discard}, but top of discard pile is {card}. Penalizing."
                     )
                     self.penalize(p)
                 else:
-                    self.discard(p, idx)
+                    self.discard(p, idx=idx)
+            if card.effect != Card.Effect.NONE:
+                logger.info(f"[GameMaster]: Continuing discard chain - Try again!")
 
             if not discard_idx or card.effect == Card.Effect.NONE:
                 break
 
     def apply_effect(self, player: Player, effect: Card.Effect, decision: Any):
+        logger.info(f"[GameMaster]: Player {player.name} triggered {effect.value}.")
         if effect == Card.Effect.DRAW:
             target_name = decision
             target_player = self.get_player_by_name(target_name)
@@ -260,6 +306,9 @@ class Game:
             target_player = self.get_player_by_name(target_name)
             random.shuffle(self.hands[target_player.name])
             target_player.view.hand = [None] * len(target_player.view.hand)
+            logger.info(
+                f"[GameMaster]: Player {target_player.name}'s hand has been shuffled."
+            )
 
         elif effect == Card.Effect.SWAP:
             target_name1, idx1, target_name2, idx2 = decision
@@ -290,6 +339,9 @@ class Game:
                         player.view.opponents_hands[target2.name][idx2]
                     )
                     player.view.opponents_hands[target2.name][idx2] = tmp
+            logger.info(
+                f"[GameMaster]: Player {target1.name}'s card at index {idx1} and Player {target2.name}'s card at index {idx2} swapped."
+            )
 
         elif effect == Card.Effect.PEEK:
             target_name, idx = decision
@@ -297,9 +349,10 @@ class Game:
             if target == player:
                 player.learn_card(idx, self.hands[target.name][idx])
             else:
-                player.learn_opponent_card(
-                    target, idx, self.hands[target.name][idx]
-                )
+                player.learn_opponent_card(target, idx, self.hands[target.name][idx])
+            logger.info(
+                f"[GameMaster]: Player {player.name} peeked at Player {target.name}'s card at index {idx}."
+            )
 
     def calculate_scores(self):
         """Implement the scoring logic based on the caller and hands."""
@@ -307,18 +360,23 @@ class Game:
             sum(card.value() for card in self.hands[p.name]) for p in self.players
         ]
         scores = tmp_scores[:]
-        caller_score = tmp_scores.pop(self.caller_index)
+        caller_score = tmp_scores.pop(self.view.caller_index)
         min_opponent_score = min(tmp_scores)
         if min_opponent_score > caller_score:
-            print(f"Player {self.players[self.caller_index].name} successfully called!")
-            scores[self.caller_index] = 0
+            logger.info(
+                f"[GameMaster]: Player {self.players[self.view.caller_index].name}'s call was a success!"
+            )
+            scores[self.view.caller_index] = 0
         else:
-            print(f"Player {self.players[self.caller_index].name} failed the call.")
-            scores[self.caller_index] *= 2
+            logger.info(
+                f"[GameMaster]: Player {self.players[self.view.caller_index].name} failed the call."
+            )
+            scores[self.view.caller_index] *= 2
         for i, _ in enumerate(self.players):
             self.view.scores[i] += scores[i]
 
     def init_round(self):
+        logger.info(f"[GameMaster]: ## Starting round {self.view.round + 1} ##")
         self.dealer.reset_deck()
         self.dealer.deal_initial_hands(self.hands)
         # Player learn their initial hands
@@ -330,9 +388,10 @@ class Game:
         self.current_player_index = (
             0 if self.view.round == 0 else self.view.scores.index(max(self.view.scores))
         )
-        self.caller_index = -1
+        self.view.caller_index = -1
 
     def end_round(self):
+        logger.info(f"[GameMaster]: ## Ending round {self.view.round + 1} ##")
         self.view.round += 1
         self.calculate_scores()
 
@@ -340,6 +399,14 @@ class Game:
         return any(score >= 100 for score in self.view.scores)
 
     def end_game(self):
-        print("## Game Over ##")
+        logger.info("[GameMaster]: ## Game Over ##")
+        logger.info("[GameMaster]: Final Scores:")
         for i, player in enumerate(self.players):
-            print(f"Player {player.name}: {self.view.scores[i]} points")
+            logger.info(f"\t{player.name}: {self.view.scores[i]} points")
+        min_score = min(self.view.scores)
+        winners = [
+            p.name
+            for i, p in enumerate(self.players)
+            if self.view.scores[i] == min_score
+        ]
+        logger.info("\n\tWinner(s): " + ", ".join(winners))

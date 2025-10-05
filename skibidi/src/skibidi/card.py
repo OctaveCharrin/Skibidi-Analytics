@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class Card:
     class Suit(str, Enum):
         SPADES = "♠"
@@ -38,9 +39,9 @@ class Card:
 
     def __repr__(self):
         if self.rank in [Card.Rank.JOKER_RED, Card.Rank.JOKER_BLACK]:
-            return self.rank
+            return "★Black Joker★" if self.rank == Card.Rank.JOKER_BLACK else "★Red Joker★"
         return f"{self.rank.value}{self.suit.value}"
-    
+
     def __eq__(self, other):
         if isinstance(other, Card):
             return self.suit == other.suit and self.rank == other.rank

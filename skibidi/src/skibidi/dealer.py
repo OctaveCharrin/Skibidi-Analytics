@@ -1,13 +1,17 @@
 import random
+from enum import Enum
 
 from skibidi.card import Card
 
 
 class Dealer:
 
-    class Source:
+    class Source(Enum):
         DRAW = 0
         DISCARD = 1
+
+        def __str__(self):
+            return "Draw Pile" if self == Dealer.Source.DRAW else "Discard Pile"
 
     class View:
         def __init__(self, dealer: "Dealer"):
@@ -16,6 +20,7 @@ class Dealer:
 
         def update(self, dealer: "Dealer"):
             self.draw_pile_size = len(dealer.draw_pile)
+            self.discard_pile = dealer.discard_pile
 
         def __repr__(self, indent: str = "") -> str:
             """Provides a clean, indented representation of the dealer's view."""
@@ -25,9 +30,9 @@ class Dealer:
 
             return (
                 f"Dealer.View(\n"
-                f"{indent}    (draw_pile_size): {self.draw_pile_size}\n"
-                f"{indent}    (discard_pile): {discard_str}\n"
-                f"{indent})"
+                f"{indent}   (draw_pile_size): {self.draw_pile_size}\n"
+                f"{indent}   (discard_pile): {discard_str}\n"
+                f"{indent}   )"
             )
 
     def __init__(self, hand_size: int = 5, treasure_size: int = 3):
@@ -91,6 +96,7 @@ class Dealer:
     def draw_from_discard(self):
         if self.discard_pile:
             card = self.discard_pile.pop()
+            self.view.update(self)
             return card
         raise ValueError("Discard pile is empty.")
 
@@ -103,3 +109,4 @@ class Dealer:
 
     def discard(self, card: Card):
         self.discard_pile.append(card)
+        self.view.update(self)

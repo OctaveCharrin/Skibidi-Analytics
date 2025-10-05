@@ -9,9 +9,13 @@ if TYPE_CHECKING:
     from skibidi.player import Player
 
 
+def _print_preface(label: str) -> None:
+    """Print a preface for a prompt."""
+    print(f"\n[HumanStrategy]: Player {label}, at your terminal!")
+
 def _print_view(label: str, view: object) -> None:
     """Safe print helper for views."""
-    print(f"=== {label} ===")
+    print(f"========= {label} =========")
     # Assume views provide a helpful __repr__ per README; print it.
     try:
         print(view)
@@ -33,23 +37,23 @@ def _print_view(label: str, view: object) -> None:
                     print(f"{a}: {getattr(view, a)}")
                 except Exception:
                     print(f"{a}: <unprintable>")
-    print("=" * 20)
+    print("=" * (len(label) + 20))
 
 
 def _choose_int(prompt: str, minv: int, maxv: int, allow_negative_one: bool = True) -> int:
     """Prompt until a valid integer in [minv, maxv] (or -1 if allowed) is entered."""
     while True:
-        val = input(f"{prompt} (enter integer between {minv} and {maxv}"
+        val = input(f"[HumanStrategy]: {prompt} (enter integer between {minv} and {maxv}"
                     + (", or -1" if allow_negative_one else "") + "): ").strip()
         if allow_negative_one and val == "-1":
             return -1
         try:
             i = int(val)
         except ValueError:
-            print("Not an integer, try again.")
+            print("[HumanStrategy]: Not an integer, try again.")
             continue
         if i < minv or i > maxv:
-            print("Out of range, try again.")
+            print("[HumanStrategy]: Out of range, try again.")
             continue
         return i
 
@@ -57,9 +61,9 @@ def _choose_int(prompt: str, minv: int, maxv: int, allow_negative_one: bool = Tr
 def _choose_player_name(prompt: str, candidates: Optional[list[str]]) -> Optional[str]:
     """Prompt user to choose a player name from candidates or none (empty)."""
     if candidates:
-        print(f"Available players: {', '.join(candidates)}")
+        print(f"[HumanStrategy]: Available players: {', '.join(candidates)}")
     while True:
-        val = input(f"{prompt} (enter player name or empty for 'None'): ").strip()
+        val = input(f"[HumanStrategy]: {prompt} (enter player name or empty for 'None'): ").strip()
         if val == "":
             return None
         # If no candidates provided, accept any non-empty name
@@ -70,10 +74,10 @@ def _choose_player_name(prompt: str, candidates: Optional[list[str]]) -> Optiona
             return val
 
         # Offer to accept a free-text name if the user really wants it
-        yn = input(f"'{val}' isn't in the known players. Accept this name anyway? (y/n): ").strip().lower()
+        yn = input(f"[HumanStrategy]: '{val}' isn't in the known players. Accept this name anyway? (y/n): ").strip().lower()
         if yn in ("y", "yes"):
             return val
-        print("Unknown player name, try again.")
+        print("[HumanStrategy]: Unknown player name, try again.")
 
 
 class HumanStrategy(Strategy):
@@ -87,26 +91,28 @@ class HumanStrategy(Strategy):
     @staticmethod
     def select_draw_pile(public: "Game.View", private: "Player.View") -> Dealer.Source:
         # Print concise public/private info per README structure
+        _print_preface(private.name)
         _print_view("Public view", public)
         _print_view("Your private view", private)
         while True:
-            choice = input("Choose draw pile - (D)RAW or (X)DISCARD: ").strip().lower()
+            choice = input("[HumanStrategy]: Choose draw pile - (D)RAW or (X)DISCARD: ").strip().lower()
             if choice in ("d", "draw"):
                 return Dealer.Source.DRAW
             if choice in ("x", "discard", "dsc"):
                 return Dealer.Source.DISCARD
-            print("Invalid choice, please enter 'draw' or 'discard' (or D/X).")
+            print("[HumanStrategy]: Invalid choice, please enter 'draw' or 'discard' (or D/X).")
 
     @staticmethod
     def select_card_to_exchange(
         public: "Game.View", private: "Player.View", source: Dealer.Source
     ) -> int:
+        _print_preface(private.name)
         _print_view("Public view", public)
         _print_view("Your private view", private)
-        # private.hand is documented in README as list[Card|None]
+        print(f"[HumanStrategy]: You drew {private.drawn_card} from {source} pile.")
         hand_len = len(getattr(private, "hand", []))
         if hand_len == 0:
-            print("No cards in hand to exchange; will discard drawn card (-1).")
+            print("[HumanStrategy]: No cards in hand to exchange; will discard drawn card (-1).")
             return -1
         return _choose_int(
             "Select index of card to exchange (or -1 to discard the drawn card)",
@@ -117,11 +123,12 @@ class HumanStrategy(Strategy):
 
     @staticmethod
     def select_card_to_discard(public: "Game.View", private: "Player.View") -> int:
+        _print_preface(private.name)
         _print_view("Public view", public)
         _print_view("Your private view", private)
         hand_len = len(getattr(private, "hand", []))
         if hand_len == 0:
-            print("No cards in hand to discard; returning -1.")
+            print("[HumanStrategy]: No cards in hand to discard; returning -1.")
             return -1
         return _choose_int(
             "Select index of card to discard (or -1 for no discard)",
@@ -130,9 +137,10 @@ class HumanStrategy(Strategy):
             allow_negative_one=True,
         )
 
+    #TODO: rewrite this a bit more straightforwardly
     @staticmethod
     def decide_effect(public: "Game.View", private: "Player.View", effect: Card.Effect) -> Any:
-        # Print views
+        _print_preface(private.name)
         _print_view("Public view", public)
         _print_view("Your private view", private)
 
@@ -140,7 +148,7 @@ class HumanStrategy(Strategy):
         candidates = None
         if hasattr(private, "opponents_hands") and isinstance(private.opponents_hands, dict):
             try:
-                candidates = list(private.opponents_hands.keys())
+                candidates = list(private.opponents_hands.keys()) + [private.name]
             except Exception:
                 candidates = None
 
@@ -162,7 +170,7 @@ class HumanStrategy(Strategy):
         if effect in (Card.Effect.DRAW, Card.Effect.SHUFFLE):
             # Ask for target player or none
             name = _choose_player_name(
-                f"Effect {effect.name}: choose target player to apply effect to", candidates
+                f"Effect {effect.value}: choose target player to apply effect to", candidates
             )
             return name  # can be None
 
@@ -170,7 +178,7 @@ class HumanStrategy(Strategy):
             # ask for player and index
             target = _choose_player_name("Choose player to peek at", candidates)
             if target is None:
-                print("Peek cancelled.")
+                print("[HumanStrategy]: Peek cancelled.")
                 return None
             # try to get opponent hand length if available on public
             opponent_hand_len = None
@@ -186,7 +194,7 @@ class HumanStrategy(Strategy):
 
             hand_len = opponent_hand_len if opponent_hand_len is not None else max(0, len(getattr(private, "hand", [])))
             if hand_len == 0:
-                print("No known card positions for that opponent; returning None.")
+                print("[HumanStrategy]: No known card positions for that opponent; returning None.")
                 return None
             idx = _choose_int(f"Index of card to peek in {target}'s hand", 0, hand_len - 1, allow_negative_one=False)
             return (target, idx)
@@ -195,11 +203,11 @@ class HumanStrategy(Strategy):
             # ask for two players and two indices
             p1 = _choose_player_name("First player to swap (player1)", candidates)
             if p1 is None:
-                print("Swap cancelled.")
+                print("[HumanStrategy]: Swap cancelled.")
                 return None
             p2 = _choose_player_name("Second player to swap (player2)", candidates)
             if p2 is None:
-                print("Swap cancelled.")
+                print("[HumanStrategy]: Swap cancelled.")
                 return None
             # best-effort to get lengths
             def _hand_len_for(name: str) -> int:
@@ -215,7 +223,7 @@ class HumanStrategy(Strategy):
             l1 = _hand_len_for(p1)
             l2 = _hand_len_for(p2)
             if l1 == 0 or l2 == 0:
-                print("One of the players has no known hand size; cancelling swap.")
+                print("[HumanStrategy]: One of the players has no known hand size; cancelling swap.")
                 return None
             i1 = _choose_int(f"Index in {p1}'s hand to swap", 0, l1 - 1, allow_negative_one=False)
             i2 = _choose_int(f"Index in {p2}'s hand to swap", 0, l2 - 1, allow_negative_one=False)
@@ -226,17 +234,18 @@ class HumanStrategy(Strategy):
 
     @staticmethod
     def decide_call(public: "Game.View", private: "Player.View") -> int:
+        _print_preface(private.name)
         _print_view("Public view", public)
         _print_view("Your private view", private)
         hand_len = len(getattr(private, "hand", []))
         if hand_len <= 1:
             # For one-card hand, ask yes/no; if yes return 0 (per convention)
             while True:
-                ans = input("Do you want to call the round end? (y/n): ").strip().lower()
+                ans = input("[HumanStrategy]: Do you want to call the round end? (y/n): ").strip().lower()
                 if ans in ("y", "yes"):
                     return 0
                 if ans in ("n", "no"):
                     return -1
-                print("Please answer y or n.")
+                print("[HumanStrategy]: Please answer y or n.")
         # For larger hands ask for index or -1
         return _choose_int("Select index to call (or -1 for no call)", 0, max(0, hand_len - 1), allow_negative_one=True)

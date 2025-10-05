@@ -68,6 +68,7 @@ class Player:
 
             return (
                 f"Player.View(\n"
+                f"{indent}    (name): {self.name}\n"
                 f"{indent}    (drawn_card): {self.drawn_card or 'None'}\n"
                 f"{indent}    (hand): {format_cards(self.hand)}\n"
                 f"{indent}    (opponents_hands): {opponents_str}\n"
